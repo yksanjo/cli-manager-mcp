@@ -1,5 +1,6 @@
 # 🖥️ CLI Manager MCP
 
+[![CI](https://github.com/yksanjo/cli-manager-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/yksanjo/cli-manager-mcp/actions)
 [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-43853D?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org/)
 [![MCP](https://img.shields.io/badge/MCP-Model%20Context%20Protocol-purple?style=for-the-badge)](https://modelcontextprotocol.io/)
