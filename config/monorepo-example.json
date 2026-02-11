@@ -1,0 +1,135 @@
+{
+  "id": "nextjs-monorepo",
+  "name": "Next.js Full-Stack Monorepo",
+  "rootPath": "/Users/developer/projects/nextjs-app",
+  "architecture": {
+    "type": "monorepo",
+    "services": [
+      {
+        "name": "web",
+        "path": "apps/web",
+        "startCommand": "npm run dev",
+        "buildCommand": "npm run build",
+        "testCommand": "npm run test",
+        "envVars": {
+          "NEXT_PUBLIC_API_URL": "http://localhost:3001",
+          "PORT": "3000"
+        },
+        "dependsOn": ["api"]
+      },
+      {
+        "name": "api",
+        "path": "apps/api",
+        "startCommand": "npm run dev",
+        "buildCommand": "npm run build",
+        "testCommand": "npm run test",
+        "envVars": {
+          "PORT": "3001",
+          "DATABASE_URL": "postgresql://localhost:5432/app",
+          "REDIS_URL": "redis://localhost:6379"
+        },
+        "dependsOn": ["postgres", "redis"]
+      },
+      {
+        "name": "admin-dashboard",
+        "path": "apps/admin",
+        "startCommand": "npm run dev",
+        "buildCommand": "npm run build",
+        "testCommand": "npm run test",
+        "envVars": {
+          "NEXT_PUBLIC_API_URL": "http://localhost:3001",
+          "PORT": "3002"
+        },
+        "dependsOn": ["api"]
+      },
+      {
+        "name": "shared-ui",
+        "path": "packages/ui",
+        "buildCommand": "npm run build",
+        "testCommand": "npm run test"
+      },
+      {
+        "name": "shared-utils",
+        "path": "packages/utils",
+        "buildCommand": "npm run build",
+        "testCommand": "npm run test"
+      },
+      {
+        "name": "database",
+        "path": "packages/database",
+        "buildCommand": "npm run build",
+        "testCommand": "npm run test"
+      },
+      {
+        "name": "postgres",
+        "path": ".",
+        "startCommand": "docker-compose up postgres"
+      },
+      {
+        "name": "redis",
+        "path": ".",
+        "startCommand": "docker-compose up redis"
+      }
+    ]
+  },
+  "setupSteps": [
+    {
+      "name": "Install dependencies",
+      "command": "npm install",
+      "description": "Install all monorepo dependencies"
+    },
+    {
+      "name": "Build shared packages",
+      "command": "npm run build --filter=./packages/*",
+      "description": "Build shared packages before apps"
+    },
+    {
+      "name": "Start infrastructure",
+      "command": "docker-compose up -d postgres redis",
+      "description": "Start PostgreSQL and Redis containers"
+    },
+    {
+      "name": "Run database migrations",
+      "command": "cd packages/database && npm run migrate:dev",
+      "description": "Set up database schema"
+    },
+    {
+      "name": "Generate Prisma client",
+      "command": "cd packages/database && npm run db:generate",
+      "description": "Generate database client"
+    },
+    {
+      "name": "Seed database",
+      "command": "cd packages/database && npm run db:seed",
+      "description": "Seed initial data",
+      "allowFailure": true
+    }
+  ],
+  "commonCommands": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "test": "turbo test",
+    "lint": "turbo lint",
+    "typecheck": "turbo typecheck",
+    "clean": "turbo clean && rm -rf node_modules",
+    "format": "prettier --write \"**/*.{ts,tsx,md}\"",
+    "db:migrate": "cd packages/database && npm run migrate:dev",
+    "db:studio": "cd packages/database && npm run studio",
+    "db:reset": "cd packages/database && npm run db:reset",
+    "web:build": "turbo build --filter=web",
+    "api:test": "turbo test --filter=api",
+    "storybook": "cd apps/web && npm run storybook"
+  },
+  "dependencies": {
+    "node": ">=20.0.0",
+    "docker": true,
+    "postgres": true,
+    "redis": true,
+    "custom": ["Turborepo"]
+  },
+  "metadata": {
+    "description": "Turborepo monorepo with Next.js apps and shared packages",
+    "version": "2.0.0",
+    "createdAt": "2024-01-20T00:00:00Z"
+  }
+}

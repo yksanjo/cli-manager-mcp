@@ -1,0 +1,179 @@
+{
+  "id": "ecommerce-platform",
+  "name": "E-Commerce Platform",
+  "rootPath": "/Users/developer/projects/ecommerce",
+  "architecture": {
+    "type": "microservices",
+    "services": [
+      {
+        "name": "api-gateway",
+        "path": "services/api-gateway",
+        "startCommand": "npm run dev",
+        "buildCommand": "npm run build",
+        "testCommand": "npm test",
+        "envVars": {
+          "PORT": "3000",
+          "NODE_ENV": "development",
+          "SERVICES_USER": "http://localhost:3001",
+          "SERVICES_PRODUCTS": "http://localhost:3002",
+          "SERVICES_ORDERS": "http://localhost:3003"
+        }
+      },
+      {
+        "name": "user-service",
+        "path": "services/user-service",
+        "startCommand": "npm run dev",
+        "buildCommand": "npm run build",
+        "testCommand": "npm test",
+        "envVars": {
+          "PORT": "3001",
+          "NODE_ENV": "development",
+          "DATABASE_URL": "postgresql://localhost:5432/users"
+        },
+        "dependsOn": ["postgres", "redis"]
+      },
+      {
+        "name": "product-service",
+        "path": "services/product-service",
+        "startCommand": "npm run dev",
+        "buildCommand": "npm run build",
+        "testCommand": "npm test",
+        "envVars": {
+          "PORT": "3002",
+          "NODE_ENV": "development",
+          "DATABASE_URL": "postgresql://localhost:5432/products",
+          "REDIS_URL": "redis://localhost:6379"
+        },
+        "dependsOn": ["postgres", "redis"]
+      },
+      {
+        "name": "order-service",
+        "path": "services/order-service",
+        "startCommand": "npm run dev",
+        "buildCommand": "npm run build",
+        "testCommand": "npm test",
+        "envVars": {
+          "PORT": "3003",
+          "NODE_ENV": "development",
+          "DATABASE_URL": "postgresql://localhost:5432/orders",
+          "REDIS_URL": "redis://localhost:6379"
+        },
+        "dependsOn": ["postgres", "redis", "user-service", "product-service"]
+      },
+      {
+        "name": "notification-worker",
+        "path": "workers/notifications",
+        "startCommand": "npm run start:worker",
+        "envVars": {
+          "NODE_ENV": "development",
+          "REDIS_URL": "redis://localhost:6379"
+        },
+        "dependsOn": ["redis"]
+      },
+      {
+        "name": "postgres",
+        "path": ".",
+        "startCommand": "docker-compose up postgres",
+        "envVars": {}
+      },
+      {
+        "name": "redis",
+        "path": ".",
+        "startCommand": "docker-compose up redis",
+        "envVars": {}
+      }
+    ]
+  },
+  "setupSteps": [
+    {
+      "name": "Install root dependencies",
+      "command": "npm install",
+      "description": "Install workspace root dependencies"
+    },
+    {
+      "name": "Start infrastructure",
+      "command": "docker-compose up -d postgres redis",
+      "description": "Start PostgreSQL and Redis containers"
+    },
+    {
+      "name": "Install API Gateway dependencies",
+      "command": "npm install",
+      "workingDir": "services/api-gateway",
+      "description": "Install API Gateway dependencies"
+    },
+    {
+      "name": "Install User Service dependencies",
+      "command": "npm install",
+      "workingDir": "services/user-service",
+      "description": "Install User Service dependencies"
+    },
+    {
+      "name": "Run User Service migrations",
+      "command": "npm run migrate",
+      "workingDir": "services/user-service",
+      "description": "Run database migrations for User Service"
+    },
+    {
+      "name": "Install Product Service dependencies",
+      "command": "npm install",
+      "workingDir": "services/product-service",
+      "description": "Install Product Service dependencies"
+    },
+    {
+      "name": "Run Product Service migrations",
+      "command": "npm run migrate",
+      "workingDir": "services/product-service",
+      "description": "Run database migrations for Product Service"
+    },
+    {
+      "name": "Install Order Service dependencies",
+      "command": "npm install",
+      "workingDir": "services/order-service",
+      "description": "Install Order Service dependencies"
+    },
+    {
+      "name": "Run Order Service migrations",
+      "command": "npm run migrate",
+      "workingDir": "services/order-service",
+      "description": "Run database migrations for Order Service"
+    },
+    {
+      "name": "Install Notification Worker dependencies",
+      "command": "npm install",
+      "workingDir": "workers/notifications",
+      "description": "Install Notification Worker dependencies"
+    },
+    {
+      "name": "Seed sample data",
+      "command": "npm run seed",
+      "workingDir": "scripts",
+      "description": "Seed sample products and users",
+      "allowFailure": true
+    }
+  ],
+  "commonCommands": {
+    "test": "npm run test:all",
+    "test:unit": "npm run test:unit",
+    "test:integration": "npm run test:integration",
+    "build": "npm run build:all",
+    "lint": "npm run lint",
+    "format": "npm run format",
+    "clean": "npm run clean",
+    "reset-db": "docker-compose down -v && docker-compose up -d postgres redis && npm run migrate:all",
+    "logs": "docker-compose logs -f",
+    "deploy:staging": "./scripts/deploy.sh staging",
+    "deploy:production": "./scripts/deploy.sh production"
+  },
+  "dependencies": {
+    "node": ">=18.0.0",
+    "docker": true,
+    "postgres": true,
+    "redis": true,
+    "custom": ["Docker Compose"]
+  },
+  "metadata": {
+    "description": "Full-stack e-commerce platform with microservices architecture",
+    "version": "1.0.0",
+    "createdAt": "2024-01-15T00:00:00Z"
+  }
+}

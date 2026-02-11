@@ -1,0 +1,52 @@
+{
+  "id": "my-react-app",
+  "name": "React Application",
+  "rootPath": "/Users/developer/projects/my-app",
+  "architecture": {
+    "type": "single-app",
+    "services": [
+      {
+        "name": "app",
+        "path": ".",
+        "startCommand": "npm run dev",
+        "buildCommand": "npm run build",
+        "testCommand": "npm run test",
+        "envVars": {
+          "VITE_API_URL": "http://localhost:8080",
+          "NODE_ENV": "development"
+        }
+      }
+    ]
+  },
+  "setupSteps": [
+    {
+      "name": "Install dependencies",
+      "command": "npm install",
+      "description": "Install npm dependencies"
+    },
+    {
+      "name": "Copy environment file",
+      "command": "cp .env.example .env",
+      "description": "Create local environment file",
+      "allowFailure": true
+    }
+  ],
+  "commonCommands": {
+    "dev": "npm run dev",
+    "build": "npm run build",
+    "preview": "npm run preview",
+    "test": "npm run test",
+    "test:ui": "npm run test:ui",
+    "lint": "npm run lint",
+    "format": "npm run format",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "node": ">=18.0.0"
+  },
+  "metadata": {
+    "description": "Single-page React application with Vite",
+    "version": "1.0.0",
+    "createdAt": "2024-01-25T00:00:00Z"
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "id": "demo-project",
+  "name": "Demo Project",
+  "rootPath": "/Users/yoshikondo",
+  "architecture": {
+    "type": "single-app",
+    "services": [
+      {
+        "name": "demo-terminal",
+        "path": ".",
+        "startCommand": "echo 'Welcome to CLI Manager MCP!' && echo 'This terminal is managed by Claude' && bash"
+      }
+    ]
+  },
+  "setupSteps": [
+    {
+      "name": "Welcome message",
+      "command": "echo 'CLI Manager MCP is ready!'",
+      "description": "Initial setup complete"
+    }
+  ],
+  "commonCommands": {
+    "hello": "echo 'Hello from CLI Manager!'",
+    "list-files": "ls -la",
+    "current-dir": "pwd"
+  },
+  "metadata": {
+    "description": "Demo project to test CLI Manager MCP",
+    "version": "1.0.0",
+    "createdAt": "2024-02-11T00:00:00Z"
+  }
+}
