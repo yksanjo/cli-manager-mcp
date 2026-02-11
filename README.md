@@ -82,7 +82,7 @@ Claude: [Shows recent backend terminal output]
 
 ```bash
 # Clone the repository
-git clone https://github.com/YOUR_USERNAME/cli-manager-mcp.git
+git clone https://github.com/yksanjo/cli-manager-mcp.git
 cd cli-manager-mcp
 
 # Install dependencies
@@ -339,8 +339,10 @@ Distributed under the MIT License. See [LICENSE](./LICENSE) for more information
 ## 🔗 Links
 
 - [Documentation](./docs/)
-- [Report Bug](../../issues)
-- [Request Feature](../../issues)
+- [Repository](https://github.com/yksanjo/cli-manager-mcp)
+- [Report Bug](https://github.com/yksanjo/cli-manager-mcp/issues)
+- [Request Feature](https://github.com/yksanjo/cli-manager-mcp/issues)
+
 
 ---
 
