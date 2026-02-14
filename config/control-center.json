@@ -1,0 +1,46 @@
+{
+  "id": "dev-control-center",
+  "name": "Development Control Center",
+  "rootPath": "/Users/yoshikondo",
+  "architecture": {
+    "type": "microservices",
+    "services": [
+      {
+        "name": "apihub",
+        "path": "/Users/yoshikondo/apihub",
+        "startCommand": "npm run dev",
+        "dependsOn": []
+      },
+      {
+        "name": "vocat-cli",
+        "path": "/Users/yoshikondo/vocat-cli",
+        "startCommand": "node src/index.js",
+        "dependsOn": []
+      }
+    ]
+  },
+  "setupSteps": [
+    {
+      "name": "Check apihub dependencies",
+      "command": "cd /Users/yoshikondo/apihub && ls node_modules",
+      "workingDir": "/Users/yoshikondo/apihub"
+    },
+    {
+      "name": "Check vocat-cli dependencies",
+      "command": "cd /Users/yoshikondo/vocat-cli && ls node_modules",
+      "workingDir": "/Users/yoshikondo/vocat-cli"
+    }
+  ],
+  "commonCommands": {
+    "start-all": "Start all projects",
+    "stop-all": "Stop all projects",
+    "status": "Show status of all projects"
+  },
+  "dependencies": {
+    "node": ">=18.0.0"
+  },
+  "metadata": {
+    "description": "Control center for managing multiple CLI projects",
+    "version": "1.0.0"
+  }
+}
