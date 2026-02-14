@@ -13,6 +13,10 @@ import * as path from "path";
 import * as os from "os";
 import { v4 as uuidv4 } from "uuid";
 import { z } from "zod";
+import { exec } from "child_process";
+import { promisify } from "util";
+
+const execAsync = promisify(exec);
 
 // ============================================================================
 // Logging System
@@ -600,6 +604,31 @@ const TOOLS: Tool[] = [
       required: ["projectId"],
     },
   },
+  // Visible Terminal Windows
+  {
+    name: "open_terminal_window",
+    description: "Open a visible terminal window (in Terminal.app) and run a command",
+    inputSchema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "Name/label for this window" },
+        cwd: { type: "string", description: "Working directory" },
+        command: { type: "string", description: "Command to run" },
+      },
+      required: ["name", "cwd", "command"],
+    },
+  },
+  {
+    name: "open_terminal_windows",
+    description: "Open multiple visible terminal windows at once (one per service)",
+    inputSchema: {
+      type: "object",
+      properties: {
+        projectId: { type: "string", description: "Project ID from loaded config" },
+      },
+      required: ["projectId"],
+    },
+  },
 ];
 
 // ============================================================================
@@ -946,6 +975,52 @@ async function handleTool(name: string, args: any): Promise<Array<{ type: "text"
       return [{
         type: "text",
         text: `Dependencies for ${project?.name}:\n\n${results.join("\n")}`,
+      }];
+    }
+
+    // Visible Terminal Windows
+    case "open_terminal_window": {
+      const { name, cwd, command } = args;
+      
+      // Escape the command for AppleScript
+      const escapedCommand = command.replace(/"/g, '\\"');
+      const escapedCwd = cwd.replace(/"/g, '\\"');
+      
+      const script = `tell app "Terminal" to do script "cd ${escapedCwd} && ${escapedCommand}"`;
+      await execAsync(`osascript -e '${script}'`);
+      
+      Logger.info(`Opened terminal window: ${name}`, { cwd, command });
+      return [{
+        type: "text",
+        text: `✓ Opened visible terminal window "${name}"\n  CWD: ${cwd}\n  Command: ${command}\n\nCheck your Terminal.app to see the running process!`,
+      }];
+    }
+
+    case "open_terminal_windows": {
+      const { projectId } = args;
+      const project = projects.get(projectId);
+      if (!project) {
+        throw new Error(`Project ${projectId} not found. Load it first with load_project.`);
+      }
+
+      const results: string[] = [];
+      
+      for (const service of project.architecture.services) {
+        if (service.startCommand) {
+          const escapedPath = service.path.replace(/"/g, '\\"');
+          const escapedCmd = service.startCommand.replace(/"/g, '\\"');
+          
+          const script = `tell app "Terminal" to do script "cd ${escapedPath} && ${escapedCmd}"`;
+          await execAsync(`osascript -e '${script}'`);
+          
+          results.push(`✓ Opened window for ${service.name}`);
+        }
+      }
+
+      Logger.info(`Opened ${results.length} terminal windows for project: ${projectId}`);
+      return [{
+        type: "text",
+        text: `✓ Opened ${results.length} visible terminal windows for "${project.name}":\n\n${results.join("\n")}\n\nCheck your Terminal.app - all projects should be running!`,
       }];
     }
 
