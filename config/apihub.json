@@ -1,0 +1,36 @@
+{
+  "id": "apihub",
+  "name": "APIHub",
+  "rootPath": "/Users/yoshikondo/apihub",
+  "architecture": {
+    "type": "single-app",
+    "services": [
+      {
+        "name": "nextjs",
+        "path": ".",
+        "startCommand": "npm run dev",
+        "envVars": {}
+      }
+    ]
+  },
+  "setupSteps": [
+    {
+      "name": "Install dependencies",
+      "command": "npm install",
+      "description": "Install Node.js dependencies"
+    }
+  ],
+  "commonCommands": {
+    "dev": "npm run dev",
+    "build": "npm run build",
+    "start": "npm run start",
+    "lint": "npm run lint"
+  },
+  "dependencies": {
+    "node": ">=18.0.0"
+  },
+  "metadata": {
+    "description": "Next.js API hub with tRPC and Prisma",
+    "version": "1.0.0"
+  }
+}
