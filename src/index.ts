@@ -15,6 +15,75 @@ import { v4 as uuidv4 } from "uuid";
 import { z } from "zod";
 
 // ============================================================================
+// Logging System
+// ============================================================================
+
+enum LogLevel {
+  DEBUG = 0,
+  INFO = 1,
+  WARN = 2,
+  ERROR = 3,
+}
+
+class Logger {
+  private static level: LogLevel = LogLevel.INFO;
+  private static logs: Array<{ timestamp: Date; level: string; message: string }> = [];
+  private static maxLogs = 1000;
+
+  static setLevel(level: LogLevel): void {
+    Logger.level = level;
+  }
+
+  static debug(message: string, ...args: any[]): void {
+    Logger.log(LogLevel.DEBUG, "DEBUG", message, ...args);
+  }
+
+  static info(message: string, ...args: any[]): void {
+    Logger.log(LogLevel.INFO, "INFO", message, ...args);
+  }
+
+  static warn(message: string, ...args: any[]): void {
+    Logger.log(LogLevel.WARN, "WARN", message, ...args);
+  }
+
+  static error(message: string, ...args: any[]): void {
+    Logger.log(LogLevel.ERROR, "ERROR", message, ...args);
+  }
+
+  private static log(level: LogLevel, levelStr: string, message: string, ...args: any[]): void {
+    if (level < Logger.level) return;
+    
+    const formattedMessage = args.length > 0 
+      ? `${message} ${args.map(a => JSON.stringify(a)).join(" ")}`
+      : message;
+    
+    const entry = { timestamp: new Date(), level: levelStr, message: formattedMessage };
+    Logger.logs.push(entry);
+    
+    if (Logger.logs.length > Logger.maxLogs) {
+      Logger.logs.shift();
+    }
+
+    // Output to stderr so it doesn't interfere with MCP protocol
+    const timestamp = entry.timestamp.toISOString();
+    console.error(`[${timestamp}] [${levelStr}] ${formattedMessage}`);
+  }
+
+  static getLogs(level?: LogLevel): Array<{ timestamp: Date; level: string; message: string }> {
+    if (level !== undefined) {
+      return Logger.logs.filter(log => 
+        LogLevel[log.level as keyof typeof LogLevel] === level
+      );
+    }
+    return [...Logger.logs];
+  }
+
+  static clearLogs(): void {
+    Logger.logs = [];
+  }
+}
+
+// ============================================================================
 // Types & Interfaces
 // ============================================================================
 
@@ -26,6 +95,9 @@ interface TerminalSession {
   cwd: string;
   createdAt: Date;
   commandHistory: string[];
+  outputReady: boolean;
+  lastCommand: string;
+  commandStartTime: number;
 }
 
 interface ProjectService {
@@ -104,6 +176,9 @@ function createTerminal(name: string, cwd: string = process.cwd()): TerminalSess
     cwd,
     createdAt: new Date(),
     commandHistory: [],
+    outputReady: false,
+    lastCommand: "",
+    commandStartTime: 0,
   };
 
   process_pty.onData((data) => {
@@ -121,7 +196,15 @@ function createTerminal(name: string, cwd: string = process.cwd()): TerminalSess
   return session;
 }
 
-function executeCommand(terminalId: string, command: string, waitForOutput: boolean = true): Promise<string> {
+// Smart command execution with better output detection
+function executeCommand(
+  terminalId: string, 
+  command: string, 
+  waitForOutput: boolean = true,
+  options: { timeout?: number; pattern?: RegExp } = {}
+): Promise<string> {
+  const { timeout = 10000, pattern } = options;
+  
   return new Promise((resolve, reject) => {
     const terminal = terminals.get(terminalId);
     if (!terminal) {
@@ -130,6 +213,10 @@ function executeCommand(terminalId: string, command: string, waitForOutput: bool
     }
 
     terminal.commandHistory.push(command);
+    terminal.lastCommand = command;
+    terminal.commandStartTime = Date.now();
+    terminal.outputReady = false;
+    
     const beforeLength = terminal.output.length;
     
     terminal.process.write(command + "\r");
@@ -139,11 +226,83 @@ function executeCommand(terminalId: string, command: string, waitForOutput: bool
       return;
     }
 
-    // Wait a bit for output
-    setTimeout(() => {
-      const output = terminal.output.slice(beforeLength).join("");
-      resolve(output || "Command executed (no output)");
-    }, 500);
+    // Helper to extract new output
+    const getNewOutput = () => terminal.output.slice(beforeLength).join("");
+
+    // If a pattern is provided, wait for it
+    if (pattern) {
+      const startTime = Date.now();
+      const checkInterval = setInterval(() => {
+        const output = getNewOutput();
+        if (pattern.test(output) || Date.now() - startTime > timeout) {
+          clearInterval(checkInterval);
+          terminal.outputReady = true;
+          resolve(output || "Command executed (no output)");
+        }
+      }, 100);
+      
+      // Cleanup on exit
+      terminal.process.onExit(() => {
+        clearInterval(checkInterval);
+      });
+      return;
+    }
+
+    // Otherwise, wait for output to stabilize
+    let lastOutput = "";
+    let stableCount = 0;
+    const checkStability = setInterval(() => {
+      const currentOutput = getNewOutput();
+      
+      if (currentOutput === lastOutput) {
+        stableCount++;
+        if (stableCount >= 3) { // Output stable for 300ms
+          clearInterval(checkStability);
+          terminal.outputReady = true;
+          resolve(currentOutput || "Command executed (no output)");
+        }
+      } else {
+        stableCount = 0;
+        lastOutput = currentOutput;
+      }
+      
+      // Timeout check
+      if (Date.now() - terminal.commandStartTime > timeout) {
+        clearInterval(checkStability);
+        terminal.outputReady = true;
+        resolve(lastOutput || "Command executed (timeout - partial output)");
+      }
+    }, 100);
+    
+    // Cleanup on exit
+    terminal.process.onExit(() => {
+      clearInterval(checkStability);
+    });
+  });
+}
+
+// Wait for a specific pattern in terminal output
+async function waitForOutput(terminalId: string, pattern: RegExp, timeout: number = 30000): Promise<string> {
+  const terminal = terminals.get(terminalId);
+  if (!terminal) {
+    throw new Error(`Terminal ${terminalId} not found`);
+  }
+
+  const startTime = Date.now();
+  const initialLength = terminal.output.length;
+  
+  return new Promise((resolve, reject) => {
+    const checkInterval = setInterval(() => {
+      const output = terminal.output.slice(initialLength).join("");
+      
+      if (pattern.test(output)) {
+        clearInterval(checkInterval);
+        resolve(output);
+      } else if (Date.now() - startTime > timeout) {
+        clearInterval(checkInterval);
+        reject(new Error(`Timeout waiting for pattern: ${pattern}`));
+      }
+    }, 100);
   });
 }
 
@@ -187,6 +346,77 @@ async function listSavedProjects(): Promise<string[]> {
   } catch {
     return [];
   }
+}
+
+// ============================================================================
+// Zod Validation Schemas
+// ============================================================================
+
+const CreateTerminalSchema = z.object({
+  name: z.string().min(1, "Terminal name is required"),
+  cwd: z.string().optional(),
+});
+
+const ExecuteCommandSchema = z.object({
+  terminalId: z.string().uuid("Invalid terminal ID format"),
+  command: z.string().min(1, "Command is required"),
+  waitForOutput: z.boolean().optional().default(true),
+});
+
+const GetTerminalOutputSchema = z.object({
+  terminalId: z.string().uuid("Invalid terminal ID format"),
+  lines: z.number().int().min(1).max(10000).optional().default(50),
+});
+
+const CloseTerminalSchema = z.object({
+  terminalId: z.string().uuid("Invalid terminal ID format"),
+});
+
+const SendInputSchema = z.object({
+  terminalId: z.string().uuid("Invalid terminal ID format"),
+  input: z.string().min(1, "Input is required"),
+});
+
+const LoadProjectSchema = z.object({
+  configPath: z.string().min(1, "Config path is required"),
+});
+
+const GetProjectInfoSchema = z.object({
+  projectId: z.string().min(1, "Project ID is required"),
+});
+
+const SetupProjectSchema = z.object({
+  projectId: z.string().min(1, "Project ID is required"),
+  stepIndex: z.number().int().min(0).optional(),
+});
+
+const StartProjectSchema = z.object({
+  projectId: z.string().min(1, "Project ID is required"),
+  serviceNames: z.array(z.string()).optional(),
+  autoSetup: z.boolean().optional().default(false),
+});
+
+const StopProjectSchema = z.object({
+  projectId: z.string().min(1, "Project ID is required"),
+});
+
+const ExecuteProjectCommandSchema = z.object({
+  projectId: z.string().min(1, "Project ID is required"),
+  commandKey: z.string().min(1, "Command key is required"),
+});
+
+const ExecuteServiceCommandSchema = z.object({
+  projectId: z.string().min(1, "Project ID is required"),
+  serviceName: z.string().min(1, "Service name is required"),
+  commandType: z.enum(["start", "build", "test"]),
+});
+
+const CheckDependenciesSchema = z.object({
+  projectId: z.string().min(1, "Project ID is required"),
+});
+
+function validateInput<T>(schema: z.ZodSchema<T>, args: unknown): T {
+  return schema.parse(args);
 }
 
 // ============================================================================
@@ -377,23 +607,28 @@ const TOOLS: Tool[] = [
 // ============================================================================
 
 async function handleTool(name: string, args: any): Promise<Array<{ type: "text"; text: string }>> {
-  switch (name) {
+  Logger.debug(`Tool called: ${name}`, args);
+  
+  try {
+    switch (name) {
     // Terminal Management
     case "create_terminal": {
-      const { name, cwd } = args;
-      const terminal = createTerminal(name, cwd);
+      const validated = validateInput(CreateTerminalSchema, args);
+      const terminal = createTerminal(validated.name, validated.cwd);
+      Logger.info(`Created terminal: ${terminal.id}`, { name: validated.name });
       return [{
         type: "text",
-        text: `✓ Created terminal "${name}"\n  ID: ${terminal.id}\n  CWD: ${terminal.cwd}`,
+        text: `✓ Created terminal "${validated.name}"\n  ID: ${terminal.id}\n  CWD: ${terminal.cwd}`,
       }];
     }
 
     case "execute_command": {
-      const { terminalId, command, waitForOutput = true } = args;
-      const result = await executeCommand(terminalId, command, waitForOutput);
+      const validated = validateInput(ExecuteCommandSchema, args);
+      const result = await executeCommand(validated.terminalId, validated.command, validated.waitForOutput);
+      Logger.info(`Executed command in terminal: ${validated.terminalId}`, { command: validated.command });
       return [{
         type: "text",
-        text: `Executed: ${command}\n\nOutput:\n${result}`,
+        text: `Executed: ${validated.command}\n\nOutput:\n${result}`,
       }];
     }
 
@@ -716,6 +951,10 @@ async function handleTool(name: string, args: any): Promise<Array<{ type: "text"
 
     default:
       throw new Error(`Unknown tool: ${name}`);
+    }
+  } catch (error: any) {
+    Logger.error(`Tool error: ${name}`, error.message);
+    throw error;
   }
 }
 
