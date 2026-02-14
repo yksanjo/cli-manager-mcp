@@ -15,6 +15,13 @@
 
 **CLI Manager MCP** is a [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server that enables Claude to create, manage, and monitor multiple terminal sessions automatically. It remembers your project structures, handles service dependencies, and lets you control everything through natural language.
 
+### New in v1.1.0
+
+- **Smart Output Detection** - Commands now wait for output to stabilize instead of fixed delays
+- **Zod Validation** - All tool inputs are validated with detailed error messages
+- **Comprehensive Logging** - Built-in logger with DEBUG, INFO, WARN, ERROR levels
+- **Pattern Matching** - Wait for specific output patterns in commands
+
 ### The Problem
 
 ```bash

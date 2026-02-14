@@ -1,7 +1,7 @@
 {
   "name": "cli-manager-mcp",
-  "version": "1.0.0",
-  "description": "MCP server for managing CLI terminal sessions and project architectures",
+  "version": "1.1.0",
+  "description": "MCP server for managing CLI terminal sessions and project architectures with smart output detection, Zod validation, and comprehensive logging",
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
