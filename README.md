@@ -1,5 +1,12 @@
 # cli-manager-mcp
 
+Production-grade project scaffold focused on reliability, maintainability, and fast onboarding.
+
+[![CI](https://img.shields.io/github/actions/workflow/status/yksanjo/cli-manager-mcp/ci.yml?branch=main&label=ci)](https://github.com/yksanjo/cli-manager-mcp/actions)
+![License](https://img.shields.io/github/license/yksanjo/cli-manager-mcp)
+![Last Commit](https://img.shields.io/github/last-commit/yksanjo/cli-manager-mcp)
+![Repo Size](https://img.shields.io/github/repo-size/yksanjo/cli-manager-mcp)
+
 ## Detailed Description
 
 cli-manager-mcp is maintained as an industry-grade software project with production-ready engineering practices.  
